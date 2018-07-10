@@ -2,12 +2,18 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
+	"strconv"
 	"time"
 
 	"gobot.io/x/gobot"
 	"gobot.io/x/gobot/platforms/mqtt"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 func main() {
 	deviceID := os.Getenv("MQTT_DEVICE_ID")
@@ -30,7 +36,6 @@ func main() {
 	err := mqttAdaptor.Connect()
 
 	work := func() {
-		data := []byte("hello")
 		eventTopic := fmt.Sprintf("devices/%s/messages/events/", deviceID)
 		incomingMessages := fmt.Sprintf("devices/%s/messages/devicebound/#", deviceID)
 
@@ -39,6 +44,7 @@ func main() {
 		})
 
 		gobot.Every(5*time.Second, func() {
+			data := intToBytes(getTemperature())
 			fmt.Printf("Sending '%s' to IoT Hub topic %s\n", data, eventTopic)
 			mqttAdaptor.Publish(eventTopic, data)
 		})
@@ -54,4 +60,16 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
+}
+
+func intToBytes(i int) []byte {
+	return []byte(strconv.Itoa(i))
+}
+
+func getTemperature() int {
+	return randInRange(10, 40)
+}
+
+func randInRange(min, max int) int {
+	return rand.Intn(max-min) + min
 }
