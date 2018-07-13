@@ -35,12 +35,20 @@ func main() {
 
 	err := mqttAdaptor.Connect()
 
+	shutdown := make(chan bool, 1)
+
 	work := func() {
 		eventTopic := fmt.Sprintf("devices/%s/messages/events/", deviceID)
 		incomingMessages := fmt.Sprintf("devices/%s/messages/devicebound/#", deviceID)
 
 		mqttAdaptor.On(incomingMessages, func(msg mqtt.Message) {
-			fmt.Printf("Receieved message: '%s' in topic '%s' with id '%d'\n", string(msg.Payload()[:]), msg.Topic(), msg.MessageID())
+			payload := string(msg.Payload()[:])
+			fmt.Printf("Received message: '%s' in topic '%s' with id '%d'\n", payload, msg.Topic(), msg.MessageID())
+
+			if payload == "shutdown" {
+				fmt.Println("device received shutdown command")
+				shutdown <- true
+			}
 		})
 
 		gobot.Every(5*time.Second, func() {
@@ -55,11 +63,14 @@ func main() {
 		work,
 	)
 
-	err = robot.Start()
+	err = robot.Start(false)
 
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	<-shutdown
+	robot.Stop()
 }
 
 func intToBytes(i int) []byte {
